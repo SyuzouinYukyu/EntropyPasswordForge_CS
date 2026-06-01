@@ -1,87 +1,87 @@
 # EntropyPasswordForge_CS
 
-EntropyPasswordForge_CS is a Windows 11 x64 password generator built with C# / .NET 8 / Windows Forms.
+EntropyPasswordForge_CS は、C# / .NET 8 / Windows Forms で作成した Windows 11 x64 向けパスワード生成ツールです。
 
-It generates passwords by combining the Windows cryptographic random number generator with mouse-input entropy and short CPU-jitter samples, then mixing the collected material with SHA-512 / HMAC-SHA512.
+Windows の暗号学的乱数生成器を基盤に、マウス入力エントロピーと短時間の CPU ジッターサンプルを追加素材として取り込み、SHA-512 / HMAC-SHA512 で混合してパスワードを生成します。
 
-> This tool is not a strict physical TRNG. The foundation is the operating system CSPRNG. Mouse movement and CPU jitter are additional mixing material.
+> このツールは、厳密な物理TRNGではありません。暗号学的な基盤は OS の CSPRNG であり、マウス移動と CPU ジッターは追加の混合素材です。
 
-## Current version
+## 現行バージョン
 
-- Version: **v1.0.8**
-- Executable: `EntropyPasswordForge_CS_v1.0.8.exe`
-- Target framework: `.NET 8` / `net8.0-windows`
-- Runtime target: `win-x64`
-- UI language: Japanese
+- バージョン: **v1.0.8**
+- 実行ファイル名: `EntropyPasswordForge_CS_v1.0.8.exe`
+- 対象フレームワーク: `.NET 8` / `net8.0-windows`
+- 対象ランタイム: `win-x64`
+- UI言語: 日本語
 
-## Safety and privacy design
+## 安全性・プライバシー設計
 
-This tool is designed to avoid suspicious or unnecessary behavior.
+このツールは、不審な挙動や不要な情報収集を避ける方針で設計しています。
 
-- Uses `System.Security.Cryptography.RandomNumberGenerator` as the cryptographic base.
-- Does not use `System.Random`.
-- Does not use `Guid.NewGuid()` as a random source.
-- Does not use `DateTime.Now.Ticks` as a standalone random source.
-- Does not collect keyboard input, key events, key timing, modifier keys, or typed text as entropy.
-- Does not perform external network communication.
-- Does not include telemetry.
-- Does not save generated passwords to files.
-- Does not write generated passwords to logs or Windows Event Log.
+- 暗号学的な基盤として `System.Security.Cryptography.RandomNumberGenerator` を使用します。
+- `System.Random` は使用しません。
+- `Guid.NewGuid()` を乱数源として使用しません。
+- `DateTime.Now.Ticks` を単独の乱数源として使用しません。
+- キーボード入力、キーイベント、キー押下タイミング、修飾キー、入力文字列をエントロピーとして収集しません。
+- 外部ネットワーク通信を行いません。
+- テレメトリを含みません。
+- 生成したパスワードをファイルへ保存しません。
+- 生成したパスワードをログや Windows Event Log へ出力しません。
 
-## Main features
+## 主な機能
 
-- OS CSPRNG + mouse-input entropy + CPU-jitter mixing.
-- SHA-512 / HMAC-SHA512 based mixing and DRBG flow.
-- Rejection sampling for unbiased character selection.
-- Fisher-Yates shuffle after required character groups are selected.
-- Full-screen mouse entropy collection mode.
-- Clipboard auto-clear after 30 seconds.
-- Generated-result auto-clear after 60 seconds.
-- Optional auto-copy mode. When enabled, generation count is fixed to 1.
-- Ambiguous-character exclusion option.
-- Minimum-use sliders for uppercase letters, digits, and symbols.
-- Custom symbol mode: include or exclude.
+- OS CSPRNG + マウス入力エントロピー + CPU ジッターの混合。
+- SHA-512 / HMAC-SHA512 ベースの混合および DRBG 処理。
+- 文字選択時の偏りを抑える rejection sampling。
+- 必須文字種を選択した後の Fisher-Yates シャッフル。
+- 全画面マウスエントロピー収集モード。
+- 30秒後のクリップボード自動消去。
+- 60秒後の生成結果表示自動消去。
+- 自動コピー機能。自動コピー有効時は生成数を 1 に固定。
+- 紛らわしい文字の除外。
+- 大文字・数字・記号の最低使用数スライダー。
+- カスタム記号の「含む」モード / 「除外」モード。
 
-## UI layout
+## UI構成
 
-The UI is adjusted around Full HD 1920x1080 usage.
+UI は Full HD 1920x1080 付近での使用を想定して調整しています。
 
-The password settings area has two tabs:
+パスワード設定エリアには、次の2つのタブがあります。
 
-- **基本**: length, generation count, character-category checkboxes, auto-copy, auto-clear settings.
-- **記号・配分**: minimum-use sliders and symbol settings.
+- **基本**: 長さ、生成数、文字種チェック、自動コピー、自動消去などの基本設定。
+- **記号・配分**: 大文字・数字・記号の最低使用数スライダーと記号設定。
 
-Only the result/log split area is intended to be draggable. Fixed borders are not displayed as draggable controls.
+ドラッグ操作を想定しているのは、生成結果エリアとログエリアの分割部分のみです。固定境界はドラッグ可能に見えないようにしています。
 
-## Custom symbols
+## カスタム記号
 
-The symbol set can be set to either standard symbols or custom symbols.
+記号セットは、標準記号またはカスタム記号を使えます。
 
-In **含む** mode, every valid custom symbol entered by the user is included at least once when symbols are enabled.
+**含む** モードでは、記号が有効な場合、入力された有効なカスタム記号を少なくとも1回ずつ含めるように生成します。
 
-In **除外** mode, the entered symbols are removed from the standard symbol set, and generated passwords are checked so excluded symbols do not appear.
+**除外** モードでは、入力された記号を標準記号セットから除外し、生成結果に除外記号が含まれないことを確認します。
 
-Duplicate custom symbols, spaces, tabs, and line breaks are normalized away. The full custom-symbol text is not written to logs.
+重複したカスタム記号、空白、タブ、改行は正規化・除去されます。入力されたカスタム記号の全文はログへ出力しません。
 
-## Full-screen mouse entropy collection
+## 全画面マウスエントロピー収集
 
-Click the normal entropy collection area to start full-screen mouse collection mode. Move the mouse freely, then left-click again to exit. Esc also exits the mode, but Esc is only an exit operation and is not used as entropy material.
+通常のエントロピー収集エリアをクリックすると、全画面マウス収集モードを開始します。画面上でマウスを自由に動かし、左クリックで終了します。Esc キーでも終了できますが、Esc は終了操作にのみ使い、エントロピー素材としては使用しません。
 
-Very short duplicate mouse events and same-coordinate mouse moves are suppressed to reduce double counting.
+非常に短時間の重複マウスイベントや、同一座標のマウス移動は、二重カウント抑制のために除外します。
 
-## Clipboard and display clearing
+## クリップボードと表示内容の消去
 
-When clipboard auto-clear is enabled, the clipboard is cleared after 30 seconds only if its content still matches the generated password.
+クリップボード自動消去が有効な場合、30秒後にクリップボード内容が生成パスワードと一致している場合のみ消去します。
 
-When result auto-clear is enabled, displayed generated results are removed after 60 seconds. The password body is not written to logs.
+生成結果の自動消去が有効な場合、60秒後に画面上の生成結果を消去します。パスワード本体はログに書き込みません。
 
-## Memory limitation
+## メモリ上の制約
 
-Generated passwords are .NET managed strings while they are displayed or copied. They may temporarily remain in process memory. Avoid screenshots, screen sharing, clipboard monitoring environments, and unnecessary reuse of generated passwords.
+生成されたパスワードは、表示中またはコピー中に .NET の管理文字列として一時的にプロセス内メモリへ存在します。スクリーンショット、画面共有、クリップボード監視環境、生成パスワードの不要な再利用は避けてください。
 
-## Build
+## ビルド方法
 
-Install the .NET 8 SDK on Windows, then run:
+Windows に .NET 8 SDK をインストールし、次を実行します。
 
 ```powershell
 dotnet restore .\EntropyPasswordForge_CS_v1.0.8.csproj
@@ -89,26 +89,26 @@ dotnet build .\EntropyPasswordForge_CS_v1.0.8.csproj -c Release
 dotnet publish .\EntropyPasswordForge_CS_v1.0.8.csproj -c Release -r win-x64 --self-contained true /p:PublishSingleFile=true
 ```
 
-The published executable is expected under:
+発行後の実行ファイルは、通常次の場所に出力されます。
 
 ```text
 bin\Release\net8.0-windows\win-x64\publish\EntropyPasswordForge_CS_v1.0.8.exe
 ```
 
-## Release hash
+## リリースハッシュ
 
-SHA-256 for the v1.0.8 published executable:
+v1.0.8 公開用実行ファイルの SHA-256 は次の通りです。
 
 ```text
 D0802520867151A48C57B54F9E4108EED78519E1D9BF454767A66A68CB23BA5A
 ```
 
-## Repository policy
+## リポジトリ運用方針
 
-Build artifacts such as `bin/`, `obj/`, `publish/`, `*.exe`, `*.dll`, `*.pdb`, `*.deps.json`, and `*.runtimeconfig.json` should not be committed to the repository.
+`bin/`、`obj/`、`publish/`、`*.exe`、`*.dll`、`*.pdb`、`*.deps.json`、`*.runtimeconfig.json` などのビルド生成物はリポジトリへコミットしません。
 
-Executable files should be distributed through GitHub Releases, not from the repository root.
+実行ファイルはリポジトリ直下ではなく、GitHub Releases から配布します。
 
-## Disclaimer
+## 免責事項
 
-Use this tool at your own risk. Password storage, rotation, and compatibility with destination systems are the user's responsibility.
+このツールは自己責任で使用してください。生成したパスワードの保存、ローテーション、使用先システムとの互換性確認は利用者の責任です。
