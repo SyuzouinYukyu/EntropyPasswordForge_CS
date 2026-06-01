@@ -1,60 +1,60 @@
-# Changelog
+# 変更履歴
 
 ## v1.0.8
 
-- Merged the former `配分` and `記号` tabs into `記号・配分`.
-- Fixed the UI issue where only the symbol slider could appear abnormally tall.
-- Unified uppercase, digit, and symbol slider row heights.
-- Removed the visible `有効カスタム記号数` display from the UI.
-- Reorganized the symbol/distribution tab for Full HD usability.
-- Kept auto-copy, include/exclude custom symbols, minimum-use sliders, and full-screen mouse collection behavior.
-- Kept the no-keyboard-entropy, no-network, and no-password-logging policies.
+- 旧 `配分` タブと旧 `記号` タブを統合し、`記号・配分` タブに変更。
+- 記号スライダーだけが異様に高く表示されることがあるUI問題を修正。
+- 大文字・数字・記号スライダーの行高を統一。
+- UI上の `有効カスタム記号数` 表示を削除。
+- Full HD 環境で扱いやすいように、記号・配分タブの構成を整理。
+- 自動コピー、カスタム記号の含む/除外モード、最低使用数スライダー、全画面マウス収集の動作を維持。
+- キーボードエントロピー非使用、外部通信なし、パスワード非ログ出力の方針を維持。
 
 ## v1.0.7
 
-- Reorganized the right-side password settings area into tabs.
-- Fixed slider-area clipping in Full HD layouts.
-- Cleaned up fixed-border and draggable-border visual behavior.
+- 右側のパスワード設定エリアをタブ構成へ再編。
+- Full HD レイアウトでスライダー領域が欠ける問題を修正。
+- 固定境界とドラッグ可能境界の見た目を整理。
 
 ## v1.0.6
 
-- Reworked the layout around Full HD 1920x1080 usage.
-- Reduced clipping around the character distribution sliders.
-- Fixed unnecessary drag hints on fixed borders.
+- Full HD 1920x1080 付近での使用を想定してレイアウトを再調整。
+- 文字配分スライダー周辺の欠けを軽減。
+- 固定境界に不要なドラッグ可能表示が出る問題を修正。
 
 ## v1.0.5
 
-- Changed custom-symbol include mode so all valid custom symbols are always included at least once when symbols are enabled.
-- Reduced top-area whitespace.
-- Improved fixed and draggable boundary handling.
+- カスタム記号の「含む」モードで、有効なカスタム記号を少なくとも1回ずつ含める仕様へ変更。
+- 上部エリアの余白を削減。
+- 固定境界とドラッグ可能境界の処理を改善。
 
 ## v1.0.4
 
-- Added uppercase, digit, and symbol minimum-use sliders.
-- Added custom-symbol include/exclude modes.
-- Added duplicate mouse-event suppression in full-screen collection mode.
+- 大文字・数字・記号の最低使用数スライダーを追加。
+- カスタム記号の含む/除外モードを追加。
+- 全画面収集モードで重複マウスイベント抑制を追加。
 
 ## v1.0.3
 
-- Improved UI color handling.
-- Added optional auto-copy behavior with generation count fixed to one.
-- Preserved clipboard auto-clear behavior.
+- UIの色処理を改善。
+- 自動コピー機能を追加。自動コピー時は生成数を1に固定。
+- クリップボード自動消去機能を維持。
 
 ## v1.0.2
 
-- Hardened full-screen mouse entropy collection behavior.
-- Improved custom-symbol normalization and validation.
-- Adjusted default length and generation count.
+- 全画面マウスエントロピー収集の挙動を強化。
+- カスタム記号の正規化と検証を改善。
+- 初期値の長さと生成数を調整。
 
 ## v1.0.1
 
-- Improved layout visibility.
-- Added full-screen mouse entropy collection mode.
-- Added initial icon support.
+- レイアウトの視認性を改善。
+- 全画面マウスエントロピー収集モードを追加。
+- 初期アイコン対応を追加。
 
 ## v1.0.0
 
-- Initial C# / .NET 8 / Windows Forms implementation.
-- Implemented OS CSPRNG based password generation with mouse entropy and CPU-jitter mixing.
-- Implemented HMAC-SHA512 DRBG flow, rejection sampling, and Fisher-Yates shuffle.
-- Established the no-keyboard-entropy, no-network, and no-password-logging policies.
+- C# / .NET 8 / Windows Forms 版の初期実装。
+- OS CSPRNG を基盤に、マウスエントロピーと CPU ジッターを混合するパスワード生成処理を実装。
+- HMAC-SHA512 DRBG、rejection sampling、Fisher-Yates shuffle を実装。
+- キーボードエントロピー非使用、外部通信なし、パスワード非ログ出力の方針を確立。
