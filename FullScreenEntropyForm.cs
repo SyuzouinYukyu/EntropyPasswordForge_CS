@@ -31,7 +31,7 @@ internal sealed class FullScreenEntropyForm : Form, IMessageFilter
         _collector = collector;
         _targetEvents = targetEvents;
 
-        Text = "EntropyPasswordForge_CS_v1.0.8 全画面マウス収集";
+        Text = "EntropyPasswordForge_CS_v1.0.11 全画面マウス収集";
         StartPosition = FormStartPosition.Manual;
         Bounds = screen.Bounds;
         WindowState = FormWindowState.Maximized;

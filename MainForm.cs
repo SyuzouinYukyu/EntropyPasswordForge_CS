@@ -1,13 +1,15 @@
+using System.Globalization;
 using System.Security.Cryptography;
 
 namespace EntropyPasswordForge_CS;
 
 internal sealed class MainForm : Form
 {
-    private const string AppVersion = "v1.0.8";
+    private const string AppVersion = "v1.0.11";
     private const int RequiredMouseEvents = 256;
 
     private readonly MouseEntropyCollector _mouseCollector = new();
+    private readonly SplitContainer _mainVerticalSplitContainer = new();
     private readonly SplitContainer _logSplitContainer = new();
     private readonly Panel _entropyPanel = new();
     private readonly ProgressBar _entropyProgress = new();
@@ -23,6 +25,7 @@ internal sealed class MainForm : Form
     private readonly CheckBox _clipboardClearCheck = new();
     private readonly CheckBox _autoCopyCheck = new();
     private readonly CheckBox _resultAutoClearCheck = new();
+    private readonly TabControl _settingsTabControl = new();
     private readonly ComboBox _symbolModeCombo = new();
     private readonly ComboBox _customSymbolUsageCombo = new();
     private readonly TextBox _customSymbolsTextBox = new();
@@ -34,16 +37,21 @@ internal sealed class MainForm : Form
     private readonly Label _digitsTrackValueLabel = new();
     private readonly Label _symbolsTrackValueLabel = new();
     private readonly TextBox _resultTextBox = new();
+    private readonly ComboBox _resultFontSizeComboBox = new();
     private readonly TextBox _logTextBox = new();
     private readonly System.Windows.Forms.Timer _clipboardTimer = new();
     private readonly System.Windows.Forms.Timer _resultClearTimer = new();
+    private readonly SettingsService _settingsService = new();
     private string? _clipboardTextToClear;
+    private float _resultFontSize = 10f;
     private bool _uiReady;
+    private bool _isLoadingSettings;
+    private AppSettings? _loadedSettings;
     private Point? _lastEntropyPanelMovePoint;
 
     public MainForm()
     {
-        Text = "EntropyPasswordForge_CS_v1.0.8 - OS暗号乱数 + マウス入力エントロピー + CPUジッター混合型";
+        Text = "EntropyPasswordForge_CS_v1.0.11 - OS暗号乱数 + マウス入力エントロピー + CPUジッター混合型";
         StartPosition = FormStartPosition.CenterScreen;
         MinimumSize = new Size(1100, 680);
         Size = new Size(1280, 760);
@@ -57,6 +65,7 @@ internal sealed class MainForm : Form
         }
 
         BuildUi();
+        LoadSettings();
         _uiReady = true;
         WireMouseEntropyEvents();
         WireTimers();
@@ -64,45 +73,63 @@ internal sealed class MainForm : Form
         AddLog($"{AppVersion} 起動。キーボード入力は収集しません。");
     }
 
+    protected override void OnShown(EventArgs e)
+    {
+        base.OnShown(e);
+        if (_loadedSettings is not null)
+        {
+            ApplyDeferredSettings(_loadedSettings);
+            _loadedSettings = null;
+        }
+    }
+
+    protected override void OnFormClosing(FormClosingEventArgs e)
+    {
+        SaveSettings();
+        base.OnFormClosing(e);
+    }
+
     private void BuildUi()
     {
         _logSplitContainer.Dock = DockStyle.Fill;
         _logSplitContainer.Orientation = Orientation.Horizontal;
-        _logSplitContainer.SplitterDistance = 610;
+        _logSplitContainer.SplitterDistance = 590;
         _logSplitContainer.SplitterWidth = 7;
+        _logSplitContainer.Cursor = Cursors.HSplit;
         _logSplitContainer.BackColor = SystemColors.ControlLight;
         _logSplitContainer.Panel1.BackColor = SystemColors.Control;
         _logSplitContainer.Panel2.BackColor = SystemColors.Control;
-        _logSplitContainer.Panel1MinSize = 540;
+        _logSplitContainer.Panel1MinSize = 470;
         _logSplitContainer.Panel2MinSize = 90;
         _logSplitContainer.Paint += SplitContainerPaint;
         Controls.Add(_logSplitContainer);
 
-        TableLayoutPanel main = new()
-        {
-            Dock = DockStyle.Fill,
-            ColumnCount = 1,
-            RowCount = 2,
-            Padding = new Padding(6, 4, 6, 4),
-            BackColor = SystemColors.Control
-        };
-        main.RowStyles.Add(new RowStyle(SizeType.Absolute, 394));
-        main.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
-        _logSplitContainer.Panel1.Controls.Add(main);
+        _mainVerticalSplitContainer.Dock = DockStyle.Fill;
+        _mainVerticalSplitContainer.Orientation = Orientation.Horizontal;
+        _mainVerticalSplitContainer.SplitterDistance = 378;
+        _mainVerticalSplitContainer.SplitterWidth = 7;
+        _mainVerticalSplitContainer.Cursor = Cursors.HSplit;
+        _mainVerticalSplitContainer.BackColor = SystemColors.ControlLight;
+        _mainVerticalSplitContainer.Panel1.BackColor = SystemColors.Control;
+        _mainVerticalSplitContainer.Panel2.BackColor = SystemColors.Control;
+        _mainVerticalSplitContainer.Panel1MinSize = 330;
+        _mainVerticalSplitContainer.Panel2MinSize = 120;
+        _mainVerticalSplitContainer.Paint += SplitContainerPaint;
+        _logSplitContainer.Panel1.Controls.Add(_mainVerticalSplitContainer);
 
         TableLayoutPanel top = new()
         {
             Dock = DockStyle.Fill,
             ColumnCount = 2,
             RowCount = 2,
-            Padding = new Padding(2, 0, 2, 2),
+            Padding = new Padding(8, 4, 8, 4),
             BackColor = SystemColors.Control
         };
         top.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50));
         top.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50));
         top.RowStyles.Add(new RowStyle(SizeType.Absolute, 28));
         top.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
-        main.Controls.Add(top, 0, 0);
+        _mainVerticalSplitContainer.Panel1.Controls.Add(top);
 
         Label description = new()
         {
@@ -135,14 +162,14 @@ internal sealed class MainForm : Form
             BackColor = SystemColors.Control
         };
         resultArea.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
-        resultArea.RowStyles.Add(new RowStyle(SizeType.Absolute, 40));
-        main.Controls.Add(resultArea, 0, 1);
+        resultArea.RowStyles.Add(new RowStyle(SizeType.Absolute, 46));
+        _mainVerticalSplitContainer.Panel2.Controls.Add(resultArea);
 
         _resultTextBox.Dock = DockStyle.Fill;
         _resultTextBox.Multiline = true;
         _resultTextBox.ScrollBars = ScrollBars.Both;
         _resultTextBox.WordWrap = false;
-        _resultTextBox.Font = new Font(FontFamily.GenericMonospace, 10f);
+        _resultTextBox.Font = new Font(FontFamily.GenericMonospace, _resultFontSize);
         _resultTextBox.BackColor = SystemColors.Window;
         _resultTextBox.ForeColor = SystemColors.WindowText;
         resultArea.Controls.Add(_resultTextBox, 0, 0);
@@ -159,6 +186,7 @@ internal sealed class MainForm : Form
         buttons.Controls.Add(CreateButton("マウスエントロピー収集リセット", (_, _) => ResetEntropy()));
         buttons.Controls.Add(CreateButton("結果を全コピー", (_, _) => CopyResults()));
         buttons.Controls.Add(CreateButton("結果を削除", (_, _) => ClearResults("生成結果を削除しました。")));
+        buttons.Controls.Add(CreateResultFontSizeControl());
         buttons.Controls.Add(CreateButton("終了", (_, _) => Close()));
 
         _logTextBox.Dock = DockStyle.Fill;
@@ -235,11 +263,8 @@ internal sealed class MainForm : Form
         _digitsCheck.CheckedChanged += (_, _) => UpdateCompositionState();
         _symbolsCheck.CheckedChanged += (_, _) => UpdateSymbolInputState();
 
-        TabControl tabs = new()
-        {
-            Dock = DockStyle.Fill,
-            Padding = new Point(10, 4)
-        };
+        _settingsTabControl.Dock = DockStyle.Fill;
+        _settingsTabControl.Padding = new Point(10, 4);
 
         TabPage basicTab = new("基本") { BackColor = SystemColors.Control, UseVisualStyleBackColor = true };
         TabPage symbolCompositionTab = new("記号・配分") { BackColor = SystemColors.Control, UseVisualStyleBackColor = true };
@@ -247,12 +272,12 @@ internal sealed class MainForm : Form
         basicTab.Controls.Add(BuildBasicSettingsTab());
         symbolCompositionTab.Controls.Add(BuildSymbolCompositionTab());
 
-        tabs.TabPages.AddRange([basicTab, symbolCompositionTab]);
+        _settingsTabControl.TabPages.AddRange([basicTab, symbolCompositionTab]);
 
         UpdateSymbolInputState();
         UpdateCompositionState();
         UpdateAutoCopyState();
-        return tabs;
+        return _settingsTabControl;
     }
 
     private Control BuildBasicSettingsTab()
@@ -297,22 +322,34 @@ internal sealed class MainForm : Form
 
     private Control BuildSymbolCompositionTab()
     {
-        TableLayoutPanel layout = new()
+        Panel scrollPanel = new()
         {
             Dock = DockStyle.Fill,
+            AutoScroll = true,
+            BackColor = SystemColors.Control,
+            Padding = new Padding(0)
+        };
+
+        TableLayoutPanel layout = new()
+        {
+            Dock = DockStyle.Top,
+            AutoSize = true,
+            AutoSizeMode = AutoSizeMode.GrowAndShrink,
             ColumnCount = 1,
             RowCount = 2,
             Padding = new Padding(8, 6, 8, 6),
             BackColor = SystemColors.Control
         };
-        layout.RowStyles.Add(new RowStyle(SizeType.Absolute, 120));
-        layout.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
+        layout.RowStyles.Add(new RowStyle(SizeType.Absolute, 190));
+        layout.RowStyles.Add(new RowStyle(SizeType.Absolute, 94));
 
         GroupBox compositionGroup = new()
         {
             Dock = DockStyle.Fill,
             Text = "文字配分（最低使用数）",
-            Padding = new Padding(8, 4, 8, 6),
+            MinimumSize = new Size(0, 184),
+            Padding = new Padding(8, 10, 8, 8),
+            Margin = new Padding(0, 0, 0, 8),
             BackColor = SystemColors.Control
         };
         compositionGroup.Controls.Add(BuildCompositionArea());
@@ -322,12 +359,15 @@ internal sealed class MainForm : Form
         {
             Dock = DockStyle.Fill,
             Text = "記号設定",
+            MinimumSize = new Size(0, 86),
             Padding = new Padding(8, 6, 8, 6),
             BackColor = SystemColors.Control
         };
         symbolGroup.Controls.Add(BuildSymbolArea());
         layout.Controls.Add(symbolGroup, 0, 1);
-        return layout;
+        scrollPanel.Controls.Add(layout);
+        scrollPanel.Resize += (_, _) => layout.Width = scrollPanel.ClientSize.Width;
+        return scrollPanel;
     }
 
     private Control BuildCompositionArea()
@@ -335,25 +375,22 @@ internal sealed class MainForm : Form
         TableLayoutPanel layout = new()
         {
             Dock = DockStyle.Fill,
-            ColumnCount = 3,
+            ColumnCount = 1,
             RowCount = 3,
             Padding = new Padding(2, 8, 2, 2),
             BackColor = SystemColors.Control
         };
-        layout.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 62));
-        layout.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
-        layout.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 48));
-        layout.RowStyles.Add(new RowStyle(SizeType.Absolute, 28));
-        layout.RowStyles.Add(new RowStyle(SizeType.Absolute, 28));
-        layout.RowStyles.Add(new RowStyle(SizeType.Absolute, 28));
+        layout.RowStyles.Add(new RowStyle(SizeType.Absolute, 48));
+        layout.RowStyles.Add(new RowStyle(SizeType.Absolute, 48));
+        layout.RowStyles.Add(new RowStyle(SizeType.Absolute, 48));
 
         ConfigureTrackBar(_upperTrackBar, _upperTrackValueLabel, 4);
         ConfigureTrackBar(_digitsTrackBar, _digitsTrackValueLabel, 6);
         ConfigureTrackBar(_symbolsTrackBar, _symbolsTrackValueLabel, 5);
 
-        AddTrackRow(layout, 0, "大文字", _upperTrackBar, _upperTrackValueLabel);
-        AddTrackRow(layout, 1, "数字", _digitsTrackBar, _digitsTrackValueLabel);
-        AddTrackRow(layout, 2, "記号", _symbolsTrackBar, _symbolsTrackValueLabel);
+        layout.Controls.Add(BuildSliderRow("大文字", _upperTrackBar, _upperTrackValueLabel), 0, 0);
+        layout.Controls.Add(BuildSliderRow("数字", _digitsTrackBar, _digitsTrackValueLabel), 0, 1);
+        layout.Controls.Add(BuildSliderRow("記号", _symbolsTrackBar, _symbolsTrackValueLabel), 0, 2);
         return layout;
     }
 
@@ -413,23 +450,59 @@ internal sealed class MainForm : Form
         trackBar.SmallChange = 1;
         trackBar.LargeChange = 2;
         trackBar.Value = value;
-        trackBar.Dock = DockStyle.None;
-        trackBar.Anchor = AnchorStyles.Left | AnchorStyles.Right;
+        trackBar.Dock = DockStyle.Top;
         trackBar.AutoSize = false;
-        trackBar.Height = 24;
-        trackBar.Margin = new Padding(0, 2, 0, 2);
+        trackBar.Height = 34;
+        trackBar.MinimumSize = new Size(80, 34);
+        trackBar.Margin = new Padding(0);
         valueLabel.Dock = DockStyle.Fill;
-        valueLabel.TextAlign = ContentAlignment.MiddleLeft;
+        valueLabel.AutoSize = false;
+        valueLabel.TextAlign = ContentAlignment.MiddleCenter;
         valueLabel.Text = value.ToString();
-        valueLabel.Margin = new Padding(6, 0, 0, 0);
+        valueLabel.Margin = new Padding(0);
         trackBar.ValueChanged += (_, _) => valueLabel.Text = trackBar.Value.ToString();
     }
 
-    private static void AddTrackRow(TableLayoutPanel layout, int row, string labelText, TrackBar trackBar, Label valueLabel)
+    private static Control BuildSliderRow(string labelText, TrackBar trackBar, Label valueLabel)
     {
-        layout.Controls.Add(new Label { Text = labelText, Dock = DockStyle.Fill, TextAlign = ContentAlignment.MiddleLeft }, 0, row);
-        layout.Controls.Add(trackBar, 1, row);
-        layout.Controls.Add(valueLabel, 2, row);
+        TableLayoutPanel row = new()
+        {
+            Dock = DockStyle.Fill,
+            MinimumSize = new Size(0, 46),
+            ColumnCount = 3,
+            RowCount = 1,
+            Margin = new Padding(0),
+            Padding = new Padding(0),
+            BackColor = SystemColors.Control
+        };
+        row.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 76));
+        row.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
+        row.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 50));
+        row.RowStyles.Add(new RowStyle(SizeType.Absolute, 46));
+
+        Label label = new()
+        {
+            Text = labelText,
+            Dock = DockStyle.Fill,
+            AutoSize = false,
+            TextAlign = ContentAlignment.MiddleLeft,
+            Margin = new Padding(0)
+        };
+
+        Panel trackHost = new()
+        {
+            Dock = DockStyle.Fill,
+            MinimumSize = new Size(0, 42),
+            Padding = new Padding(4, 6, 4, 0),
+            Margin = new Padding(0),
+            BackColor = SystemColors.Control
+        };
+        trackHost.Controls.Add(trackBar);
+
+        row.Controls.Add(label, 0, 0);
+        row.Controls.Add(trackHost, 1, 0);
+        row.Controls.Add(valueLabel, 2, 0);
+        return row;
     }
 
     private static Control CreateLabeledNumeric(string labelText, NumericUpDown numeric)
@@ -476,6 +549,72 @@ internal sealed class MainForm : Form
 
         button.Click += handler;
         return button;
+    }
+
+    private Control CreateResultFontSizeControl()
+    {
+        FlowLayoutPanel panel = new()
+        {
+            AutoSize = true,
+            Height = 34,
+            Margin = new Padding(4, 5, 8, 3),
+            WrapContents = false,
+            BackColor = SystemColors.Control
+        };
+
+        Label label = new()
+        {
+            Text = "結果フォントサイズ:",
+            AutoSize = true,
+            Margin = new Padding(0, 6, 4, 0),
+            TextAlign = ContentAlignment.MiddleLeft
+        };
+
+        _resultFontSizeComboBox.DropDownStyle = ComboBoxStyle.DropDown;
+        _resultFontSizeComboBox.Width = 82;
+        _resultFontSizeComboBox.Margin = new Padding(0, 2, 0, 0);
+        _resultFontSizeComboBox.Items.AddRange(["8", "9", "10", "11", "12", "14", "16", "18", "20", "22", "24", "28", "32", "36"]);
+        _resultFontSizeComboBox.Text = _resultFontSize.ToString("0.##", CultureInfo.InvariantCulture);
+        _resultFontSizeComboBox.SelectedIndexChanged += (_, _) => ApplyResultFontSizeFromInput();
+        _resultFontSizeComboBox.TextChanged += (_, _) => ApplyResultFontSizeFromInput();
+
+        panel.Controls.Add(label);
+        panel.Controls.Add(_resultFontSizeComboBox);
+        return panel;
+    }
+
+    private void ApplyResultFontSizeFromInput()
+    {
+        string normalized = NormalizeFontSizeText(_resultFontSizeComboBox.Text);
+        if (!float.TryParse(normalized, NumberStyles.AllowDecimalPoint, CultureInfo.InvariantCulture, out float newSize))
+        {
+            return;
+        }
+
+        ApplyResultFontSize(newSize);
+    }
+
+    private static string NormalizeFontSizeText(string text)
+    {
+        if (string.IsNullOrWhiteSpace(text))
+        {
+            return string.Empty;
+        }
+
+        char[] chars = text.Trim().ToCharArray();
+        for (int i = 0; i < chars.Length; i++)
+        {
+            if (chars[i] >= '０' && chars[i] <= '９')
+            {
+                chars[i] = (char)('0' + chars[i] - '０');
+            }
+            else if (chars[i] == '．')
+            {
+                chars[i] = '.';
+            }
+        }
+
+        return new string(chars);
     }
 
     private void WireMouseEntropyEvents()
@@ -806,6 +945,177 @@ internal sealed class MainForm : Form
     {
         string line = $"{DateTime.Now:HH:mm:ss} {message}{Environment.NewLine}";
         _logTextBox.AppendText(line);
+    }
+
+    private void LoadSettings()
+    {
+        _isLoadingSettings = true;
+        try
+        {
+            bool loaded = _settingsService.TryLoad(out AppSettings settings);
+            ApplySettings(settings);
+            _loadedSettings = settings;
+            if (!loaded)
+            {
+                AddLog("設定ファイルを読み込めませんでした。既定値で起動します。");
+            }
+        }
+        finally
+        {
+            _isLoadingSettings = false;
+        }
+    }
+
+    private void ApplySettings(AppSettings settings)
+    {
+        _lengthNumeric.Value = ClampDecimal(settings.PasswordLength, _lengthNumeric.Minimum, _lengthNumeric.Maximum);
+        _countNumeric.Value = ClampDecimal(settings.PasswordCount, _countNumeric.Minimum, _countNumeric.Maximum);
+        _lowerCheck.Checked = settings.UseLower;
+        _upperCheck.Checked = settings.UseUpper;
+        _digitsCheck.Checked = settings.UseDigits;
+        _symbolsCheck.Checked = settings.UseSymbols;
+        _ambiguousCheck.Checked = settings.ExcludeAmbiguous;
+        _requireEachCheck.Checked = settings.RequireEachSelectedType;
+        _clipboardClearCheck.Checked = settings.ClearClipboardAfterCopy;
+        _autoCopyCheck.Checked = settings.AutoCopy;
+        _resultAutoClearCheck.Checked = settings.AutoClearResults;
+        _upperTrackBar.Value = ClampInt(settings.MinimumUpper, _upperTrackBar.Minimum, _upperTrackBar.Maximum);
+        _digitsTrackBar.Value = ClampInt(settings.MinimumDigits, _digitsTrackBar.Minimum, _digitsTrackBar.Maximum);
+        _symbolsTrackBar.Value = ClampInt(settings.MinimumSymbols, _symbolsTrackBar.Minimum, _symbolsTrackBar.Maximum);
+        _symbolModeCombo.SelectedIndex = ClampInt(settings.SymbolModeIndex, 0, Math.Max(0, _symbolModeCombo.Items.Count - 1));
+        _customSymbolUsageCombo.SelectedIndex = ClampInt(settings.CustomSymbolUsageIndex, 0, Math.Max(0, _customSymbolUsageCombo.Items.Count - 1));
+        _customSymbolsTextBox.Text = SymbolSetHelper.NormalizeSymbols(settings.CustomSymbols);
+        ApplyResultFontSize(ClampFloat(settings.ResultFontSize, 8f, 72f));
+        _resultFontSizeComboBox.Text = _resultFontSize.ToString("0.##", CultureInfo.InvariantCulture);
+        _settingsTabControl.SelectedIndex = ClampInt(settings.SelectedTabIndex, 0, Math.Max(0, _settingsTabControl.TabPages.Count - 1));
+
+        Size windowSize = new(
+            ClampInt(settings.WindowWidth, MinimumSize.Width, 3840),
+            ClampInt(settings.WindowHeight, MinimumSize.Height, 2160));
+        Size = windowSize;
+        if (settings.WindowLeft != int.MinValue && settings.WindowTop != int.MinValue)
+        {
+            Rectangle bounds = new(new Point(settings.WindowLeft, settings.WindowTop), windowSize);
+            if (IsVisibleOnAnyScreen(bounds))
+            {
+                StartPosition = FormStartPosition.Manual;
+                Bounds = bounds;
+            }
+        }
+
+        UpdateSymbolInputState();
+        UpdateCompositionState();
+        UpdateAutoCopyState();
+    }
+
+    private void ApplyDeferredSettings(AppSettings settings)
+    {
+        SetSplitterDistanceSafe(_mainVerticalSplitContainer, settings.MainSplitterDistance);
+        SetSplitterDistanceSafe(_logSplitContainer, settings.LogSplitterDistance);
+        PerformLayout();
+    }
+
+    private void SaveSettings()
+    {
+        if (_isLoadingSettings)
+        {
+            return;
+        }
+
+        AppSettings settings = new()
+        {
+            PasswordLength = (int)_lengthNumeric.Value,
+            PasswordCount = (int)_countNumeric.Value,
+            UseLower = _lowerCheck.Checked,
+            UseUpper = _upperCheck.Checked,
+            UseDigits = _digitsCheck.Checked,
+            UseSymbols = _symbolsCheck.Checked,
+            ExcludeAmbiguous = _ambiguousCheck.Checked,
+            RequireEachSelectedType = _requireEachCheck.Checked,
+            ClearClipboardAfterCopy = _clipboardClearCheck.Checked,
+            AutoCopy = _autoCopyCheck.Checked,
+            AutoClearResults = _resultAutoClearCheck.Checked,
+            MinimumUpper = _upperTrackBar.Value,
+            MinimumDigits = _digitsTrackBar.Value,
+            MinimumSymbols = _symbolsTrackBar.Value,
+            SymbolModeIndex = _symbolModeCombo.SelectedIndex,
+            CustomSymbolUsageIndex = _customSymbolUsageCombo.SelectedIndex,
+            CustomSymbols = SymbolSetHelper.NormalizeSymbols(_customSymbolsTextBox.Text),
+            ResultFontSize = _resultFontSize,
+            MainSplitterDistance = _mainVerticalSplitContainer.SplitterDistance,
+            LogSplitterDistance = _logSplitContainer.SplitterDistance,
+            WindowWidth = WindowState == FormWindowState.Normal ? Width : RestoreBounds.Width,
+            WindowHeight = WindowState == FormWindowState.Normal ? Height : RestoreBounds.Height,
+            WindowLeft = WindowState == FormWindowState.Normal ? Left : RestoreBounds.Left,
+            WindowTop = WindowState == FormWindowState.Normal ? Top : RestoreBounds.Top,
+            SelectedTabIndex = _settingsTabControl.SelectedIndex
+        };
+
+        if (!_settingsService.TrySave(settings))
+        {
+            AddLog("設定ファイルを保存できませんでした。");
+        }
+    }
+
+    private void ApplyResultFontSize(float newSize)
+    {
+        if (newSize < 8f || newSize > 72f || Math.Abs(newSize - _resultFontSize) < 0.001f)
+        {
+            return;
+        }
+
+        Font oldFont = _resultTextBox.Font;
+        _resultFontSize = newSize;
+        _resultTextBox.Font = new Font(FontFamily.GenericMonospace, _resultFontSize);
+        oldFont.Dispose();
+    }
+
+    private static decimal ClampDecimal(decimal value, decimal min, decimal max) => Math.Min(Math.Max(value, min), max);
+
+    private static int ClampInt(int value, int min, int max) => Math.Min(Math.Max(value, min), max);
+
+    private static float ClampFloat(float value, float min, float max)
+    {
+        if (float.IsNaN(value) || float.IsInfinity(value))
+        {
+            return min;
+        }
+
+        return Math.Min(Math.Max(value, min), max);
+    }
+
+    private static void SetSplitterDistanceSafe(SplitContainer split, int requestedDistance)
+    {
+        int available = split.Orientation == Orientation.Horizontal ? split.Height : split.Width;
+        if (available <= 0)
+        {
+            return;
+        }
+
+        int max = Math.Max(split.Panel1MinSize, available - split.SplitterWidth - split.Panel2MinSize);
+        int distance = ClampInt(requestedDistance, split.Panel1MinSize, max);
+        try
+        {
+            split.SplitterDistance = distance;
+        }
+        catch
+        {
+            split.SplitterDistance = split.Panel1MinSize;
+        }
+    }
+
+    private static bool IsVisibleOnAnyScreen(Rectangle bounds)
+    {
+        foreach (Screen screen in Screen.AllScreens)
+        {
+            if (Rectangle.Intersect(screen.WorkingArea, bounds).Width >= 120 &&
+                Rectangle.Intersect(screen.WorkingArea, bounds).Height >= 80)
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     private void SplitContainerPaint(object? sender, PaintEventArgs e)
